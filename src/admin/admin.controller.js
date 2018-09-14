@@ -430,22 +430,26 @@ export function importFromCsv(req, res, next) {
  * @param  {func} errorCallback   on error
  */
 function createWithRow(req, object, row, successCallback, errorCallback) {
-  req.class.findById(object._id, (err, found) => {
+  req.class.findById(object._id, function (err, found) {
     if (found) {
-      req.class.findByIdAndUpdate(object._id, object)
-        .then(function(result) {
-            successCallback(result, row);
-          }).catch(function(error) {
-            errorCallback(error, row);
-          });
+      req.class.findByIdAndUpdate(object._id, object).then(function (result) {
+        successCallback(result, row);
+      }).catch(function (error) {
+        errorCallback(error, row);
+      });
     } else {
       delete object._id;
-      req.class.create(object)
-        .then(function(result) {
-          successCallback(result, row);
-        }).catch(function(error) {
+      req.class.create(object).then(function (result) {
+        return successCallback(result, row);
+      }).catch(function (error) {
+        // this is not actually an error but we catch this in order
+        // to stop the process and prevent duplicate documents from being created
+        if (error.message === 'Update successful') {
+          return successCallback();
+        } else {
           errorCallback(error, row);
-        });
+        }
+      });
     }
   });
 };
