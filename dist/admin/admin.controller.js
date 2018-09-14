@@ -403,9 +403,15 @@ function createWithRow(req, object, row, successCallback, errorCallback) {
     } else {
       delete object._id;
       req.class.create(object).then(function (result) {
-        successCallback(result, row);
+        return successCallback(result, row);
       }).catch(function (error) {
-        errorCallback(error, row);
+        // this is not actually an error but we catch this in order
+        // to stop the process and prevent duplicate documents from being created
+        if (error.message === 'Update successful') {
+          return successCallback();
+        } else {
+          errorCallback(error, row);
+        }
       });
     }
   });
