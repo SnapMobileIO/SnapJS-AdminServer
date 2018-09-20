@@ -411,6 +411,7 @@ export function importFromCsv(req, res, next) {
   },
 
   function(error) {
+    console.log('inside anonymous error func in importFromCsv route', error);
     res.status(400).end(JSON.stringify(
       { errors:
         { error:
