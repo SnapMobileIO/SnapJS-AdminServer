@@ -326,6 +326,7 @@ export function destroyMultiple(req, res, next) {
  * Imports objects from a csv file hosted at req.body.url
  */
 export function importFromCsv(req, res, next) {
+  console.log('req.body in importFromCsv', req.body);
   let url = req.body.url;
   let response = awsHelper.getFile(url);
   response.then((response) => {
