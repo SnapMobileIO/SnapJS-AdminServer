@@ -304,6 +304,7 @@ function destroyMultiple(req, res, next) {
  * Imports objects from a csv file hosted at req.body.url
  */
 function importFromCsv(req, res, next) {
+  console.log('req.body inside importFromCsv', req.body);
   var url = req.body.url;
   var response = _snapmobileAws.awsHelper.getFile(url);
   response.then(function (response) {
