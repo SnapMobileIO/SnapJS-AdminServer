@@ -326,6 +326,12 @@ export function destroyMultiple(req, res, next) {
  * Imports objects from a csv file hosted at req.body.url
  */
 export function importFromCsv(req, res, next) {
+  let dbOption;
+
+  if (req.dbOption) {
+    dbOption = req.dbOption;
+  }
+
   let url = req.body.url;
   let response = awsHelper.getFile(url);
   response.then((response) => {
@@ -349,6 +355,17 @@ export function importFromCsv(req, res, next) {
           }
         }));
       }
+    }
+
+    // TODO: check for existence of "userId" in csvHeaders
+    if (csvHeaders.includes(dbOption) && dbOption !== "userId") {
+      res.status(503).end(JSON.stringify({
+        errors: {
+          error: {
+            message: `userId is not a header in the CSV file`,
+          }
+        }
+      }));
     }
 
     for (let i = 1; i < responseArray.length; i++) {
@@ -404,7 +421,7 @@ export function importFromCsv(req, res, next) {
         finishedRows++;
         erroredRows[row] = error;
         returnIfFinished(res, finishedRows, responseArray, erroredRows);
-      });
+      }, dbOption);
 
     }
 
@@ -429,25 +446,46 @@ export function importFromCsv(req, res, next) {
  * @param  {func} successCallback on success
  * @param  {func} errorCallback   on error
  */
-function createWithRow(req, object, row, successCallback, errorCallback) {
-  req.class.findById(object._id, (err, found) => {
-    if (found) {
-      req.class.findByIdAndUpdate(object._id, object)
-        .then(function(result) {
+function createWithRow(req, object, row, successCallback, errorCallback, importOpt) {
+  if (importOpt && importOpt === "userId") {
+    req.class.findById(object.userId, (err, found) => {
+      if (found) {
+        req.class.findByIdAndUpdate(object._id, object)
+          .then(function(result) {
+              successCallback(result, row);
+            }).catch(function(error) {
+              errorCallback(error, row);
+            });
+      } else {
+        delete object._id;
+        req.class.create(object)
+          .then(function(result) {
             successCallback(result, row);
           }).catch(function(error) {
             errorCallback(error, row);
           });
-    } else {
-      delete object._id;
-      req.class.create(object)
-        .then(function(result) {
-          successCallback(result, row);
-        }).catch(function(error) {
-          errorCallback(error, row);
-        });
-    }
-  });
+      }
+    });
+  } else {
+    req.class.findById(object._id, (err, found) => {
+      if (found) {
+        req.class.findByIdAndUpdate(object._id, object)
+          .then(function(result) {
+              successCallback(result, row);
+            }).catch(function(error) {
+              errorCallback(error, row);
+            });
+      } else {
+        delete object._id;
+        req.class.create(object)
+          .then(function(result) {
+            successCallback(result, row);
+          }).catch(function(error) {
+            errorCallback(error, row);
+          });
+      }
+    });
+  }
 };
 
 /**
