@@ -304,6 +304,8 @@ function destroyMultiple(req, res, next) {
  * Imports objects from a csv file hosted at req.body.url
  */
 function importFromCsv(req, res, next) {
+  console.log('req.body in importFromCsv', req.body);
+  var dbOption = void 0;
   var url = req.body.url;
   var response = _snapmobileAws.awsHelper.getFile(url);
   response.then(function (response) {
@@ -315,6 +317,24 @@ function importFromCsv(req, res, next) {
     var csvHeaders = responseArray[0];
     var erroredRows = {};
     var finishedRows = 0;
+
+    // if dbOption gets passed in the request, set it
+    if (req.dbOption) {
+      dbOption = req.dbOption;
+      console.log('dbOption is set locally');
+    }
+
+    // if dbOption is passed in but is not in the csvHeaders, stop the import process
+    if (dbOption && !csvHeaders.includes(dbOption)) {
+      console.log('dbOption is not in the csvHeaders collection');
+      res.status(503).end(JSON.stringify({
+        errors: {
+          error: {
+            message: dbOption + ' is not a header in the CSV file'
+          }
+        }
+      }));
+    }
 
     // Make sure headers exist in schema first before continuing
     for (var i = csvHeaders.length - 1; i >= 0; i--) {
@@ -375,7 +395,7 @@ function importFromCsv(req, res, next) {
         finishedRows++;
         erroredRows[row] = error;
         returnIfFinished(res, finishedRows, responseArray, erroredRows);
-      });
+      }, dbOption);
     }
   }, function (error) {
     res.status(400).end(JSON.stringify({ errors: { error: { message: 'An unknown error occured. Please try again.' }
@@ -391,24 +411,50 @@ function importFromCsv(req, res, next) {
  * @param  {Int} row             the row number
  * @param  {func} successCallback on success
  * @param  {func} errorCallback   on error
+ * @param  {any} importOpt an optional value to use for database lookups
  */
-function createWithRow(req, object, row, successCallback, errorCallback) {
-  req.class.findById(object._id, function (err, found) {
-    if (found) {
-      req.class.findByIdAndUpdate(object._id, object).then(function (result) {
-        successCallback(result, row);
-      }).catch(function (error) {
-        errorCallback(error, row);
-      });
-    } else {
-      delete object._id;
-      req.class.create(object).then(function (result) {
-        successCallback(result, row);
-      }).catch(function (error) {
-        errorCallback(error, row);
-      });
-    }
-  });
+function createWithRow(req, object, row, successCallback, errorCallback, importOpt) {
+  // if the importOpt (dbOption in importFromCsv function) is passed,
+  // we need to search the database using that value
+  if (importOpt) {
+    console.log('importOpt has been passed to createWithRow');
+    req.class.find(object[importOpt], function (err, found) {
+      if (found) {
+        console.log('importOpt found');
+        req.class.findByIdAndUpdate(object._id, object).then(function (result) {
+          successCallback(result, row);
+        }).catch(function (error) {
+          errorCallback(error, row);
+        });
+      } else {
+        delete object._id;
+        req.class.create(object).then(function (result) {
+          successCallback(result, row);
+        }).catch(function (error) {
+          errorCallback(error, row);
+        });
+      }
+    });
+  } else {
+    console.log('normal functionality');
+    // normal functionality
+    req.class.findById(object._id, function (err, found) {
+      if (found) {
+        req.class.findByIdAndUpdate(object._id, object).then(function (result) {
+          successCallback(result, row);
+        }).catch(function (error) {
+          errorCallback(error, row);
+        });
+      } else {
+        delete object._id;
+        req.class.create(object).then(function (result) {
+          successCallback(result, row);
+        }).catch(function (error) {
+          errorCallback(error, row);
+        });
+      }
+    });
+  }
 };
 
 /**
