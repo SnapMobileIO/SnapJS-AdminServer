@@ -326,23 +326,37 @@ export function destroyMultiple(req, res, next) {
  * Imports objects from a csv file hosted at req.body.url
  */
 export function importFromCsv(req, res, next) {
+  console.log('req.body in importFromCsv', req.body);
   let dbOption;
-
-  if (req.dbOption) {
-    dbOption = req.dbOption;
-  }
-
   let url = req.body.url;
   let response = awsHelper.getFile(url);
   response.then((response) => {
     //remove empty lines at start and end
     let responseString = response.Body.toString('utf8').replace(/^\s+|\s+$/g, '');
-
+    
     let schemaHeaders = Object.keys(req.class.schema.paths);
     let responseArray = csvToArray(responseString);
     var csvHeaders = responseArray[0];
     let erroredRows = {};
     let finishedRows = 0;
+    
+    // if dbOption gets passed in the request, set it
+    if (req.dbOption) {
+      dbOption = req.dbOption;
+      console.log('dbOption is set locally');
+    }
+
+    // if dbOption is passed in but is not in the csvHeaders, stop the import process
+    if (dbOption && !csvHeaders.includes(dbOption)) {
+      console.log('dbOption is not in the csvHeaders collection');
+      res.status(503).end(JSON.stringify({
+        errors: {
+          error: {
+            message: `${dbOption} is not a header in the CSV file`,
+          }
+        }
+      }));
+    }
 
     // Make sure headers exist in schema first before continuing
     for (var i = csvHeaders.length - 1; i >= 0; i--) {
@@ -355,17 +369,6 @@ export function importFromCsv(req, res, next) {
           }
         }));
       }
-    }
-
-    // TODO: check for existence of "userId" in csvHeaders
-    if (csvHeaders.includes(dbOption) && dbOption !== "userId") {
-      res.status(503).end(JSON.stringify({
-        errors: {
-          error: {
-            message: `userId is not a header in the CSV file`,
-          }
-        }
-      }));
     }
 
     for (let i = 1; i < responseArray.length; i++) {
@@ -445,11 +448,16 @@ export function importFromCsv(req, res, next) {
  * @param  {Int} row             the row number
  * @param  {func} successCallback on success
  * @param  {func} errorCallback   on error
+ * @param  {any} importOpt an optional value to use for database lookups
  */
 function createWithRow(req, object, row, successCallback, errorCallback, importOpt) {
-  if (importOpt && importOpt === "userId") {
-    req.class.findById(object.userId, (err, found) => {
+  // if the importOpt (dbOption in importFromCsv function) is passed,
+  // we need to search the database using that value
+  if (importOpt) {
+    console.log('importOpt has been passed to createWithRow');
+    req.class.find(object[importOpt], (err, found) => {
       if (found) {
+        console.log('importOpt found');
         req.class.findByIdAndUpdate(object._id, object)
           .then(function(result) {
               successCallback(result, row);
@@ -467,6 +475,8 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
       }
     });
   } else {
+    console.log('normal functionality');
+    // normal functionality
     req.class.findById(object._id, (err, found) => {
       if (found) {
         req.class.findByIdAndUpdate(object._id, object)
