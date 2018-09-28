@@ -341,8 +341,8 @@ export function importFromCsv(req, res, next) {
     let finishedRows = 0;
     
     // if dbOption gets passed in the request, set it
-    if (req.dbOption) {
-      dbOption = req.dbOption;
+    if (req.body.dbOption) {
+      dbOption = req.body.dbOption;
       console.log('dbOption is set locally');
     }
 
@@ -360,7 +360,7 @@ export function importFromCsv(req, res, next) {
 
     // Make sure headers exist in schema first before continuing
     for (var i = csvHeaders.length - 1; i >= 0; i--) {
-      if (schemaHeaders.indexOf(csvHeaders[i]) < 0) {
+      if (schemaHeaders.indexOf(csvHeaders[i]) < 0) {f
         res.status(503).end(JSON.stringify({
           errors: {
             error: {
