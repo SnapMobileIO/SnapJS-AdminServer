@@ -38,6 +38,8 @@ var _adminHelper = require('./admin.helper.js');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
 var blacklistRequestAttributes = ['_id', 'salt', 'resetPasswordExpires', 'resetPasswordToken', 'updatedAt', 'createdAt', '__v'];
 var blacklistResponseAttributes = ['password', 'salt', 'resetPasswordExpires', 'resetPasswordToken', '__v'];
 
@@ -418,9 +420,11 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
   // if the importOpt (dbOption in importFromCsv function) is passed,
   // we need to search the database using that value
   if (importOpt) {
+    var conditions = _defineProperty({}, importOpt, { $eq: [object[importOpt]] });
+
     console.log('importOpt has been passed to createWithRow');
-    req.class.find({ userId: { $eq: object[importOpt] } }, function (err, found) {
-      console.log('object[importOpt', object[importOpt]);
+    req.class.find(conditions, function (err, found) {
+      console.log('object[importOpt]', object[importOpt]);
       if (found) {
         console.log('importOpt found');
         console.log('found', found);

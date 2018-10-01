@@ -454,9 +454,13 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
   // if the importOpt (dbOption in importFromCsv function) is passed,
   // we need to search the database using that value
   if (importOpt) {
+    let conditions = {
+      [importOpt]: { $eq: [object[importOpt]] },
+    };
+
     console.log('importOpt has been passed to createWithRow');
-    req.class.find({ userId: { $eq: object[importOpt] } }, (err, found) => {
-      console.log('object[importOpt', object[importOpt]);
+    req.class.find(conditions, (err, found) => {
+      console.log('object[importOpt]', object[importOpt]);
       if (found) {
         console.log('importOpt found');
         console.log('found', found)
