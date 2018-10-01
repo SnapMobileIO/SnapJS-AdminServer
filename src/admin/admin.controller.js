@@ -457,7 +457,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
     let conditions = {
       [importOpt]: { $eq: [object[importOpt]] },
     };
-
+    console.log('conditions', conditions);
     console.log('importOpt has been passed to createWithRow');
     req.class.find(conditions, (err, found) => {
       console.log('object[importOpt]', object[importOpt]);
