@@ -419,7 +419,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
   // we need to search the database using that value
   if (importOpt) {
     console.log('importOpt has been passed to createWithRow');
-    req.class.find({ userId: object[importOpt] }, function (err, found) {
+    req.class.find({ userId: { $eq: object[importOpt] } }, function (err, found) {
       console.log('object[importOpt', object[importOpt]);
       if (found) {
         console.log('importOpt found');
