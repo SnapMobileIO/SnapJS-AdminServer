@@ -460,7 +460,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
         console.log('importOpt found');
         req.class.findByIdAndUpdate(object._id, object)
           .then(function(result) {
-              successCallback(result, row);
+              return successCallback(result, row);
             }).catch(function(error) {
               errorCallback(error, row);
             });
@@ -468,7 +468,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
         delete object._id;
         req.class.create(object)
           .then(function(result) {
-            successCallback(result, row);
+            return successCallback(result, row);
           }).catch(function(error) {
             errorCallback(error, row);
           });
@@ -481,7 +481,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
       if (found) {
         req.class.findByIdAndUpdate(object._id, object)
           .then(function(result) {
-              successCallback(result, row);
+              return successCallback(result, row);
             }).catch(function(error) {
               errorCallback(error, row);
             });
@@ -489,7 +489,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
         delete object._id;
         req.class.create(object)
           .then(function(result) {
-            successCallback(result, row);
+            return successCallback(result, row);
           }).catch(function(error) {
             errorCallback(error, row);
           });
