@@ -456,6 +456,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
   if (importOpt) {
     console.log('importOpt has been passed to createWithRow');
     req.class.find(object[importOpt], (err, found) => {
+      console.log('object[importOpt', object[importOpt]);
       if (found) {
         console.log('importOpt found');
         req.class.findByIdAndUpdate(object._id, object)
