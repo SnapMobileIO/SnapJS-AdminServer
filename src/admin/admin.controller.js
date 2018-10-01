@@ -455,7 +455,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
   // we need to search the database using that value
   if (importOpt) {
     let conditions = {
-      [importOpt]: { $eq: [object[importOpt]] },
+      [importOpt]: { $eq: object[importOpt] },
     };
     console.log('conditions', conditions);
     console.log('importOpt has been passed to createWithRow');
