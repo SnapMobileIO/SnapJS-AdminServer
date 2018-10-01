@@ -423,7 +423,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
     var conditions = _defineProperty({}, importOpt, { $eq: object[importOpt] });
     console.log('conditions', conditions);
     console.log('importOpt has been passed to createWithRow');
-    req.class.find(conditions, function (err, found) {
+    req.class.findOne(conditions, function (err, found) {
       console.log('object[importOpt]', object[importOpt]);
       if (found) {
         console.log('importOpt found');
