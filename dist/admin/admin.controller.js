@@ -426,10 +426,11 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
     req.class.findOne(conditions, function (err, found) {
       console.log('object[importOpt]', object[importOpt]);
       if (found) {
+        var foundConditions = _defineProperty({}, importOpt, { $eq: found[importOpt] });
         console.log('importOpt found');
         console.log('found', found);
-        req.class.findByIdAndUpdate(object._id, object).then(function (result) {
-          console.log('result', result);
+        req.class.findOneAndUpdate(foundConditions, object).then(function (result) {
+          console.log('result', result + '\n');
           return successCallback(result, row);
         }).catch(function (error) {
           errorCallback(error, row);
