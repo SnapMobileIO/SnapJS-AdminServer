@@ -326,7 +326,8 @@ export function destroyMultiple(req, res, next) {
  * Imports objects from a csv file hosted at req.body.url
  */
 export function importFromCsv(req, res, next) {
-  console.log('req.body in importFromCsv', req.body);
+  // dbOption is an optional parameter than can be passed in for DB queries based on values
+  // other than object ID (_id)
   let dbOption;
   let url = req.body.url;
   let response = awsHelper.getFile(url);
@@ -343,12 +344,10 @@ export function importFromCsv(req, res, next) {
     // if dbOption gets passed in the request, set it
     if (req.body.dbOption) {
       dbOption = req.body.dbOption;
-      console.log('dbOption is set locally');
     }
 
     // if dbOption is passed in but is not in the csvHeaders, stop the import process
     if (dbOption && !csvHeaders.includes(dbOption)) {
-      console.log('dbOption is not in the csvHeaders collection');
       res.status(503).end(JSON.stringify({
         errors: {
           error: {
@@ -417,6 +416,7 @@ export function importFromCsv(req, res, next) {
         object.password = crypto.randomBytes(16).toString('hex');
       }
 
+      // if dbOption is present, it is also passed into this function
       createWithRow(req, object, i, (result, row) => {
         finishedRows++;
         returnIfFinished(res, finishedRows, responseArray, erroredRows);
@@ -454,21 +454,17 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
   // if the importOpt (dbOption in importFromCsv function) is passed,
   // we need to search the database using that value
   if (importOpt) {
+    // here we use the importOpt/dbOption to find and update objects in the database
     let conditions = {
       [importOpt]: { $eq: object[importOpt] },
     };
-    console.log('conditions', conditions);
-    console.log('importOpt has been passed to createWithRow');
     req.class.findOne(conditions, (err, found) => {
-      console.log('object[importOpt]', object[importOpt]);
       if (found) {
         let foundConditions = {
           [importOpt]: { $eq: found[importOpt] },
         };
-        console.log('importOpt found');
-        console.log('found', found)
+        
         req.class.findOneAndUpdate(foundConditions, object).then(function (result) {
-          console.log('result', result + '\n');
           return successCallback(result, row);
         }).catch(function(error) {
           errorCallback(error, row);
@@ -484,8 +480,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
       }
     });
   } else {
-    console.log('normal functionality');
-    // normal functionality
+    // normal admin portal CSV import functionality
     req.class.findById(object._id, (err, found) => {
       if (found) {
         req.class.findByIdAndUpdate(object._id, object)
