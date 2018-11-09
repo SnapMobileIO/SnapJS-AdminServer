@@ -60,7 +60,7 @@ function getSchema(req, res, next) {
  */
 function checkForFalseyValues(object, property) {
   console.log('\n\n***___checkForFalseyValues___***', object[property]);
-  return object[property] === null || object[property] === '' || object[property] === undefined;
+  return object[property] === '' || object[property] === undefined || object[property] === null;
 }
 
 /**
@@ -448,7 +448,6 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
         delete object._id;
 
         if (importOpt === 'userId' && checkForFalseyValues(object, 'isInitialLogin')) {
-          console.log('***___falsey values check___***');
           object.isInitialLogin = true;
         };
 
