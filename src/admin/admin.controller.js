@@ -453,6 +453,11 @@ export function importFromCsv(req, res, next) {
 function createWithRow(req, object, row, successCallback, errorCallback, importOpt) {
   // if the importOpt (dbOption in importFromCsv function) is passed,
   // we need to search the database using that value
+  let options = {
+    upsert: true,
+    setDefaultsOnInsert: true,
+  };
+
   if (importOpt) {
     // here we use the importOpt/dbOption to find and update objects in the database
     let conditions = {
@@ -464,7 +469,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
           [importOpt]: { $eq: found[importOpt] },
         };
         
-        req.class.findOneAndUpdate(foundConditions, object).then(function (result) {
+        req.class.findOneAndUpdate(foundConditions, object, options).then(function (result) {
           return successCallback(result, row);
         }).catch(function(error) {
           errorCallback(error, row);
@@ -483,7 +488,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
     // normal admin portal CSV import functionality
     req.class.findById(object._id, (err, found) => {
       if (found) {
-        req.class.findByIdAndUpdate(object._id, object)
+        req.class.findByIdAndUpdate(object._id, object, options)
           .then(function(result) {
               return successCallback(result, row);
             }).catch(function(error) {
