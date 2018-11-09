@@ -484,7 +484,8 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
       } else {
         delete object._id;
 
-        if(importOpt && importOpt === 'userId' && checkForFalseyValues(object, 'isInitialLogin')) {
+        if(importOpt === 'userId' && checkForFalseyValues(object, 'isInitialLogin')) {
+          console.log('***___falsey values check___***')
           object.isInitialLogin = true;
         };
 
