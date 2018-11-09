@@ -442,7 +442,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
         req.class.findOneAndUpdate(foundConditions, object).then(function (result) {
           return successCallback(result, row);
         }).catch(function (error) {
-          errorCallback(error, row);
+          return errorCallback(error, row);
         });
       } else {
         delete object._id;
@@ -454,7 +454,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
         req.class.create(object).then(function (result) {
           return successCallback(result, row);
         }).catch(function (error) {
-          errorCallback(error, row);
+          return errorCallback(error, row);
         });
       }
     });
@@ -465,14 +465,14 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
         req.class.findByIdAndUpdate(object._id, object).then(function (result) {
           return successCallback(result, row);
         }).catch(function (error) {
-          errorCallback(error, row);
+          return errorCallback(error, row);
         });
       } else {
         delete object._id;
         req.class.create(object).then(function (result) {
           return successCallback(result, row);
         }).catch(function (error) {
-          errorCallback(error, row);
+          return errorCallback(error, row);
         });
       }
     });
