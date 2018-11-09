@@ -38,6 +38,18 @@ export function getSchema(req, res, next) {
 }
 
 /**
+ * Helper function for custom CSV import functionality
+ * Used in this case to check for values that will not set Mongoose Schema defaults
+ * (Mongoose will not set defaults for the following values: null, undefined, and '')
+ * @param {} object the incoming User object being imported from the CSV
+ * @param {*} property the property to have it's values checked (in this case 'isInitialLogin')
+ */
+export function checkForFalseyValues(object, property) {
+  console.log('\n\n***___checkForFalseyValues___***', object[property]);
+  return object[property] === null || object[property] === '' || object[property] === undefined;
+}
+
+/**
  * Gets a list of documents based on a search query
  * If no search query is sent, it will return all documents
  * If export=true is found in the request query, we will output CSV instead of JSON
@@ -453,11 +465,6 @@ export function importFromCsv(req, res, next) {
 function createWithRow(req, object, row, successCallback, errorCallback, importOpt) {
   // if the importOpt (dbOption in importFromCsv function) is passed,
   // we need to search the database using that value
-  let options = {
-    upsert: true,
-    setDefaultsOnInsert: true,
-  };
-
   if (importOpt) {
     // here we use the importOpt/dbOption to find and update objects in the database
     let conditions = {
@@ -469,13 +476,18 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
           [importOpt]: { $eq: found[importOpt] },
         };
         
-        req.class.findOneAndUpdate(foundConditions, object, options).then(function (result) {
+        req.class.findOneAndUpdate(foundConditions, object).then(function (result) {
           return successCallback(result, row);
         }).catch(function(error) {
           errorCallback(error, row);
         });
       } else {
         delete object._id;
+
+        if(importOpt && importOpt === 'userId' && checkForFalseyValues(object, 'isInitialLogin')) {
+          object.isInitialLogin = true;
+        };
+
         req.class.create(object)
           .then(function(result) {
             return successCallback(result, row);
@@ -488,7 +500,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
     // normal admin portal CSV import functionality
     req.class.findById(object._id, (err, found) => {
       if (found) {
-        req.class.findByIdAndUpdate(object._id, object, options)
+        req.class.findByIdAndUpdate(object._id, object)
           .then(function(result) {
               return successCallback(result, row);
             }).catch(function(error) {
