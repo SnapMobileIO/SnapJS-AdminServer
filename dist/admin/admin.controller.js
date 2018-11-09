@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.getSchema = getSchema;
+exports.checkForFalseyValues = checkForFalseyValues;
 exports.index = index;
 exports.show = show;
 exports.create = create;
@@ -48,6 +49,18 @@ var blacklistResponseAttributes = ['password', 'salt', 'resetPasswordExpires', '
  */
 function getSchema(req, res, next) {
   res.status(200).json(req.class.schema.paths);
+}
+
+/**
+ * Helper function for custom CSV import functionality
+ * Used in this case to check for values that will not set Mongoose Schema defaults
+ * (Mongoose will not set defaults for the following values: null, undefined, and '')
+ * @param {} object the incoming User object being imported from the CSV
+ * @param {*} property the property to have it's values checked (in this case 'isInitialLogin')
+ */
+function checkForFalseyValues(object, property) {
+  console.log('\n\n***___checkForFalseyValues___***', object[property]);
+  return object[property] === null || object[property] === '' || object[property] === undefined;
 }
 
 /**
@@ -433,6 +446,11 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
         });
       } else {
         delete object._id;
+
+        if (importOpt && importOpt === 'userId' && checkForFalseyValues(object, 'isInitialLogin')) {
+          object.isInitialLogin = true;
+        };
+
         req.class.create(object).then(function (result) {
           return successCallback(result, row);
         }).catch(function (error) {
