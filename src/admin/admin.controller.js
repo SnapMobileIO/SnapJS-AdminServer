@@ -45,7 +45,6 @@ export function getSchema(req, res, next) {
  * @param {*} property the property to have it's values checked (in this case 'isInitialLogin')
  */
 export function checkForFalseyValues(object, property) {
-  console.log('\n\n***___checkForFalseyValues___***', object[property]);
   return object[property] === '' || object[property] === undefined || object[property] === null;
 }
 
