@@ -471,11 +471,11 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
     };
     req.class.findOne(conditions, (err, found) => {
       if (found) {
-        let foundConditions = {
-          [importOpt]: { $eq: found[importOpt] },
-        };
-        
-        req.class.findOneAndUpdate(foundConditions, object).then(function (result) {
+        for (let prop of object) {
+          found[prop] = object[prop];
+        }
+
+        found.save().then((result) => {
           return successCallback(result, row);
         }).catch(function(error) {
           return errorCallback(error, row);

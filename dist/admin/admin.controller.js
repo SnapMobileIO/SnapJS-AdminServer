@@ -436,9 +436,32 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
     var conditions = _defineProperty({}, importOpt, { $eq: object[importOpt] });
     req.class.findOne(conditions, function (err, found) {
       if (found) {
-        var foundConditions = _defineProperty({}, importOpt, { $eq: found[importOpt] });
+        var _iteratorNormalCompletion = true;
+        var _didIteratorError = false;
+        var _iteratorError = undefined;
 
-        req.class.findOneAndUpdate(foundConditions, object).then(function (result) {
+        try {
+          for (var _iterator = object[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+            var prop = _step.value;
+
+            found[prop] = object[prop];
+          }
+        } catch (err) {
+          _didIteratorError = true;
+          _iteratorError = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion && _iterator.return) {
+              _iterator.return();
+            }
+          } finally {
+            if (_didIteratorError) {
+              throw _iteratorError;
+            }
+          }
+        }
+
+        found.save().then(function (result) {
           return successCallback(result, row);
         }).catch(function (error) {
           return errorCallback(error, row);
