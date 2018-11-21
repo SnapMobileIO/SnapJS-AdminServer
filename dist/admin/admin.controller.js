@@ -436,29 +436,8 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
     var conditions = _defineProperty({}, importOpt, { $eq: object[importOpt] });
     req.class.findOne(conditions, function (err, found) {
       if (found) {
-        var _iteratorNormalCompletion = true;
-        var _didIteratorError = false;
-        var _iteratorError = undefined;
-
-        try {
-          for (var _iterator = object[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-            var prop = _step.value;
-
-            found[prop] = object[prop];
-          }
-        } catch (err) {
-          _didIteratorError = true;
-          _iteratorError = err;
-        } finally {
-          try {
-            if (!_iteratorNormalCompletion && _iterator.return) {
-              _iterator.return();
-            }
-          } finally {
-            if (_didIteratorError) {
-              throw _iteratorError;
-            }
-          }
+        for (var prop in object) {
+          found[prop] = object[prop];
         }
 
         found.save().then(function (result) {

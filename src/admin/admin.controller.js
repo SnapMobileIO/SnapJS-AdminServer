@@ -471,7 +471,7 @@ function createWithRow(req, object, row, successCallback, errorCallback, importO
     };
     req.class.findOne(conditions, (err, found) => {
       if (found) {
-        for (let prop of object) {
+        for (let prop in object) {
           found[prop] = object[prop];
         }
 
