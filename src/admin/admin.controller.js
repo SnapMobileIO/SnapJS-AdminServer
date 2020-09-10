@@ -38,6 +38,17 @@ export function getSchema(req, res, next) {
 }
 
 /**
+ * Helper function for custom CSV import functionality
+ * Used in this case to check for values that will not set Mongoose Schema defaults
+ * (Mongoose will not set defaults for the following values: null, undefined, and '')
+ * @param {} object the incoming User object being imported from the CSV
+ * @param {*} property the property to have it's values checked (in this case 'isInitialLogin')
+ */
+export function checkForFalseyValues(object, property) {
+  return object[property] === '' || object[property] === undefined || object[property] === null;
+}
+
+/**
  * Gets a list of documents based on a search query
  * If no search query is sent, it will return all documents
  * If export=true is found in the request query, we will output CSV instead of JSON
@@ -326,21 +337,40 @@ export function destroyMultiple(req, res, next) {
  * Imports objects from a csv file hosted at req.body.url
  */
 export function importFromCsv(req, res, next) {
+  // dbOption is an optional parameter than can be passed in for DB queries based on values
+  // other than object ID (_id)
+  let dbOption;
   let url = req.body.url;
   let response = awsHelper.getFile(url);
   response.then((response) => {
     //remove empty lines at start and end
     let responseString = response.Body.toString('utf8').replace(/^\s+|\s+$/g, '');
-
+    
     let schemaHeaders = Object.keys(req.class.schema.paths);
     let responseArray = csvToArray(responseString);
     var csvHeaders = responseArray[0];
     let erroredRows = {};
     let finishedRows = 0;
+    
+    // if dbOption gets passed in the request, set it
+    if (req.body.dbOption) {
+      dbOption = req.body.dbOption;
+    }
+
+    // if dbOption is passed in but is not in the csvHeaders, stop the import process
+    if (dbOption && !csvHeaders.includes(dbOption)) {
+      res.status(503).end(JSON.stringify({
+        errors: {
+          error: {
+            message: `${dbOption} is not a header in the CSV file`,
+          }
+        }
+      }));
+    }
 
     // Make sure headers exist in schema first before continuing
     for (var i = csvHeaders.length - 1; i >= 0; i--) {
-      if (schemaHeaders.indexOf(csvHeaders[i]) < 0) {
+      if (schemaHeaders.indexOf(csvHeaders[i]) < 0) {f
         res.status(503).end(JSON.stringify({
           errors: {
             error: {
@@ -397,6 +427,7 @@ export function importFromCsv(req, res, next) {
         object.password = crypto.randomBytes(16).toString('hex');
       }
 
+      // if dbOption is present, it is also passed into this function
       createWithRow(req, object, i, (result, row) => {
         finishedRows++;
         returnIfFinished(res, finishedRows, responseArray, erroredRows);
@@ -404,7 +435,7 @@ export function importFromCsv(req, res, next) {
         finishedRows++;
         erroredRows[row] = error;
         returnIfFinished(res, finishedRows, responseArray, erroredRows);
-      });
+      }, dbOption);
 
     }
 
@@ -428,26 +459,63 @@ export function importFromCsv(req, res, next) {
  * @param  {Int} row             the row number
  * @param  {func} successCallback on success
  * @param  {func} errorCallback   on error
+ * @param  {any} importOpt an optional value to use for database lookups
  */
-function createWithRow(req, object, row, successCallback, errorCallback) {
-  req.class.findById(object._id, (err, found) => {
-    if (found) {
-      req.class.findByIdAndUpdate(object._id, object)
-        .then(function(result) {
-            successCallback(result, row);
-          }).catch(function(error) {
-            errorCallback(error, row);
-          });
-    } else {
-      delete object._id;
-      req.class.create(object)
-        .then(function(result) {
-          successCallback(result, row);
+function createWithRow(req, object, row, successCallback, errorCallback, importOpt) {
+  // if the importOpt (dbOption in importFromCsv function) is passed,
+  // we need to search the database using that value
+  if (importOpt) {
+    // here we use the importOpt/dbOption to find and update objects in the database
+    let conditions = {
+      [importOpt]: { $eq: object[importOpt] },
+    };
+    req.class.findOne(conditions, (err, found) => {
+      if (found) {
+        for (let prop in object) {
+          found[prop] = object[prop];
+        }
+
+        found.save().then((result) => {
+          return successCallback(result, row);
         }).catch(function(error) {
-          errorCallback(error, row);
+          return errorCallback(error, row);
         });
-    }
-  });
+      } else {
+        delete object._id;
+
+        if(importOpt === 'userId' && checkForFalseyValues(object, 'isInitialLogin')) {
+          object.isInitialLogin = true;
+        };
+
+        req.class.create(object)
+          .then(function(result) {
+            return successCallback(result, row);
+          }).catch(function(error) {
+            return errorCallback(error, row);
+          });
+      }
+    });
+  } else {
+    // normal admin portal CSV import functionality
+    req.class.findById(object._id, (err, found) => {
+      if (found) {
+        req.class.findByIdAndUpdate(object._id, object)
+          .then(function(result) {
+              return successCallback(result, row);
+            }).catch(function(error) {
+              return errorCallback(error, row);
+            });
+      } else {
+        delete object._id;
+        req.class.create(object)
+          .then(function(result) {
+            return successCallback(result, row);
+          }).catch(function(error) {
+            return errorCallback(error, row);
+          });
+      }
+    });
+  }
 };
 
 /**

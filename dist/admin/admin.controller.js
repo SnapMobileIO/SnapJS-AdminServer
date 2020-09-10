@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.getSchema = getSchema;
+exports.checkForFalseyValues = checkForFalseyValues;
 exports.index = index;
 exports.show = show;
 exports.create = create;
@@ -38,6 +39,8 @@ var _adminHelper = require('./admin.helper.js');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
 var blacklistRequestAttributes = ['_id', 'salt', 'resetPasswordExpires', 'resetPasswordToken', 'updatedAt', 'createdAt', '__v'];
 var blacklistResponseAttributes = ['password', 'salt', 'resetPasswordExpires', 'resetPasswordToken', '__v'];
 
@@ -46,6 +49,17 @@ var blacklistResponseAttributes = ['password', 'salt', 'resetPasswordExpires', '
  */
 function getSchema(req, res, next) {
   res.status(200).json(req.class.schema.paths);
+}
+
+/**
+ * Helper function for custom CSV import functionality
+ * Used in this case to check for values that will not set Mongoose Schema defaults
+ * (Mongoose will not set defaults for the following values: null, undefined, and '')
+ * @param {} object the incoming User object being imported from the CSV
+ * @param {*} property the property to have it's values checked (in this case 'isInitialLogin')
+ */
+function checkForFalseyValues(object, property) {
+  return object[property] === '' || object[property] === undefined || object[property] === null;
 }
 
 /**
@@ -304,6 +318,9 @@ function destroyMultiple(req, res, next) {
  * Imports objects from a csv file hosted at req.body.url
  */
 function importFromCsv(req, res, next) {
+  // dbOption is an optional parameter than can be passed in for DB queries based on values
+  // other than object ID (_id)
+  var dbOption = void 0;
   var url = req.body.url;
   var response = _snapmobileAws.awsHelper.getFile(url);
   response.then(function (response) {
@@ -316,9 +333,26 @@ function importFromCsv(req, res, next) {
     var erroredRows = {};
     var finishedRows = 0;
 
+    // if dbOption gets passed in the request, set it
+    if (req.body.dbOption) {
+      dbOption = req.body.dbOption;
+    }
+
+    // if dbOption is passed in but is not in the csvHeaders, stop the import process
+    if (dbOption && !csvHeaders.includes(dbOption)) {
+      res.status(503).end(JSON.stringify({
+        errors: {
+          error: {
+            message: dbOption + ' is not a header in the CSV file'
+          }
+        }
+      }));
+    }
+
     // Make sure headers exist in schema first before continuing
     for (var i = csvHeaders.length - 1; i >= 0; i--) {
       if (schemaHeaders.indexOf(csvHeaders[i]) < 0) {
+        f;
         res.status(503).end(JSON.stringify({
           errors: {
             error: {
@@ -368,6 +402,7 @@ function importFromCsv(req, res, next) {
         object.password = _crypto2.default.randomBytes(16).toString('hex');
       }
 
+      // if dbOption is present, it is also passed into this function
       createWithRow(req, object, _i2, function (result, row) {
         finishedRows++;
         returnIfFinished(res, finishedRows, responseArray, erroredRows);
@@ -375,7 +410,7 @@ function importFromCsv(req, res, next) {
         finishedRows++;
         erroredRows[row] = error;
         returnIfFinished(res, finishedRows, responseArray, erroredRows);
-      });
+      }, dbOption);
     }
   }, function (error) {
     res.status(400).end(JSON.stringify({ errors: { error: { message: 'An unknown error occured. Please try again.' }
@@ -391,24 +426,58 @@ function importFromCsv(req, res, next) {
  * @param  {Int} row             the row number
  * @param  {func} successCallback on success
  * @param  {func} errorCallback   on error
+ * @param  {any} importOpt an optional value to use for database lookups
  */
-function createWithRow(req, object, row, successCallback, errorCallback) {
-  req.class.findById(object._id, function (err, found) {
-    if (found) {
-      req.class.findByIdAndUpdate(object._id, object).then(function (result) {
-        successCallback(result, row);
-      }).catch(function (error) {
-        errorCallback(error, row);
-      });
-    } else {
-      delete object._id;
-      req.class.create(object).then(function (result) {
-        successCallback(result, row);
-      }).catch(function (error) {
-        errorCallback(error, row);
-      });
-    }
-  });
+function createWithRow(req, object, row, successCallback, errorCallback, importOpt) {
+  // if the importOpt (dbOption in importFromCsv function) is passed,
+  // we need to search the database using that value
+  if (importOpt) {
+    // here we use the importOpt/dbOption to find and update objects in the database
+    var conditions = _defineProperty({}, importOpt, { $eq: object[importOpt] });
+    req.class.findOne(conditions, function (err, found) {
+      if (found) {
+        for (var prop in object) {
+          found[prop] = object[prop];
+        }
+
+        found.save().then(function (result) {
+          return successCallback(result, row);
+        }).catch(function (error) {
+          return errorCallback(error, row);
+        });
+      } else {
+        delete object._id;
+
+        if (importOpt === 'userId' && checkForFalseyValues(object, 'isInitialLogin')) {
+          object.isInitialLogin = true;
+        };
+
+        req.class.create(object).then(function (result) {
+          return successCallback(result, row);
+        }).catch(function (error) {
+          return errorCallback(error, row);
+        });
+      }
+    });
+  } else {
+    // normal admin portal CSV import functionality
+    req.class.findById(object._id, function (err, found) {
+      if (found) {
+        req.class.findByIdAndUpdate(object._id, object).then(function (result) {
+          return successCallback(result, row);
+        }).catch(function (error) {
+          return errorCallback(error, row);
+        });
+      } else {
+        delete object._id;
+        req.class.create(object).then(function (result) {
+          return successCallback(result, row);
+        }).catch(function (error) {
+          return errorCallback(error, row);
+        });
+      }
+    });
+  }
 };
 
 /**
